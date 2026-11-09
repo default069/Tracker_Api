@@ -19,6 +19,17 @@ func (h *Handler) registerStatisticsRoutes(rg *gin.RouterGroup) {
 
 // GET /statistics/balance?from=&to=
 // Общий доход, расход и баланс (доход − расход) за период. Без параметров — за всё время.
+//
+// @Summary      Баланс за период
+// @Description  Доход, расход и баланс (доход − расход). Без параметров — за всё время.
+// @Tags         statistics
+// @Produce      json
+// @Param        from query string false "Начало периода (RFC3339 или YYYY-MM-DD)"
+// @Param        to query string false "Конец периода (RFC3339 или YYYY-MM-DD, дата включается целиком)"
+// @Success      200 {object} models.Balance
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /statistics/balance [get]
 func (h *Handler) GetBalance(c *gin.Context) {
 	f, msg := parseTransactionFilter(c)
 	if msg != "" {
@@ -26,7 +37,7 @@ func (h *Handler) GetBalance(c *gin.Context) {
 		return
 	}
 	// для баланса важен только период
-	f.CategoryID, f.Type = nil,
+	f.CategoryID, f.Type = nil, nil
 
 	var b models.Balance
 	err := applyTransactionFilter(h.DB.WithContext(c.Request.Context()).Model(&models.Transaction{}), f).
@@ -45,6 +56,16 @@ func (h *Handler) GetBalance(c *gin.Context) {
 // 12 месяцев года (месяцы без операций — нули, считаем в UTC).
 //   - net_minor     — доход − расход за месяц;
 //   - balance_minor — накопленный баланс на конец месяца (с учётом всех операций до начала года).
+//
+// @Summary      Статистика по месяцам
+// @Description  12 месяцев года (UTC). net_minor — доход−расход за месяц, balance_minor — накопленный баланс на конец месяца.
+// @Tags         statistics
+// @Produce      json
+// @Param        year query int false "Год (по умолчанию текущий)" minimum(1970) maximum(9999)
+// @Success      200 {array} models.MonthlyStat
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /statistics/monthly [get]
 func (h *Handler) GetMonthlyStats(c *gin.Context) {
 	year := time.Now().UTC().Year()
 	if v := c.Query("year"); v != "" {
@@ -113,6 +134,18 @@ func (h *Handler) GetMonthlyStats(c *gin.Context) {
 
 // GET /statistics/categories?type=expense&from=&to=
 // Суммы по категориям за период, по убыванию. type по умолчанию 'expense'.
+//
+// @Summary      Суммы по категориям
+// @Description  Суммы по категориям за период по убыванию. type по умолчанию expense.
+// @Tags         statistics
+// @Produce      json
+// @Param        from query string false "Начало периода (RFC3339 или YYYY-MM-DD)"
+// @Param        to query string false "Конец периода (RFC3339 или YYYY-MM-DD, дата включается целиком)"
+// @Param        type query string false "Тип" Enums(income, expense) default(expense)
+// @Success      200 {array} models.CategoryStat
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /statistics/categories [get]
 func (h *Handler) GetCategoryStats(c *gin.Context) {
 	f, msg := parseTransactionFilter(c)
 	if msg != "" {

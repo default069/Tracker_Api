@@ -11,7 +11,7 @@ import (
 )
 
 func InitPostgres() *gorm.DB {
-	dsn := "postgres://postgres:1111@localhost:5432/users?sslmode=disable"
+	dsn := "postgres://postgres:1111@localhost:5432/tracker_db?sslmode=disable"
 
 	database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),

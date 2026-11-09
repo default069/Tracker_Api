@@ -17,6 +17,14 @@ const (
 	maxPageLimit     = 100
 )
 
+// TransactionListResponse — ответ ListTransactions (используется в swagger-описании).
+type TransactionListResponse struct {
+	Data   []models.Transaction `json:"data"`
+	Total  int64                `json:"total"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+}
+
 func (h *Handler) registerTransactionRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/transactions")
 	g.POST("", h.CreateTransaction)
@@ -52,6 +60,18 @@ func (h *Handler) categoryExists(c *gin.Context, id uint) (bool, error) {
 }
 
 // POST /transactions
+//
+// @Summary      Создать транзакцию
+// @Description  occurred_at по умолчанию — текущее время (UTC).
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        input body transactionInput true "Данные транзакции"
+// @Success      201 {object} models.Transaction
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      422 {object} ErrorResponse "Категория не существует"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /transactions [post]
 func (h *Handler) CreateTransaction(c *gin.Context) {
 	var in transactionInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -177,6 +197,21 @@ func applyTransactionFilter(db *gorm.DB, f models.TransactionFilter) *gorm.DB {
 }
 
 // GET /transactions
+//
+// @Summary      Список транзакций
+// @Description  Фильтры и пагинация (limit по умолчанию 20, максимум 100).
+// @Tags         transactions
+// @Produce      json
+// @Param        from query string false "Начало периода (RFC3339 или YYYY-MM-DD)"
+// @Param        to query string false "Конец периода (RFC3339 или YYYY-MM-DD, дата включается целиком)"
+// @Param        category_id query int false "ID категории"
+// @Param        type query string false "Тип" Enums(income, expense)
+// @Param        limit query int false "Размер страницы" minimum(1) maximum(100) default(20)
+// @Param        offset query int false "Смещение" minimum(0) default(0)
+// @Success      200 {object} TransactionListResponse
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /transactions [get]
 func (h *Handler) ListTransactions(c *gin.Context) {
 	f, msg := parseTransactionFilter(c)
 	if msg != "" {
@@ -212,6 +247,16 @@ func (h *Handler) ListTransactions(c *gin.Context) {
 }
 
 // GET /transactions/:id
+//
+// @Summary      Получить транзакцию по ID
+// @Tags         transactions
+// @Produce      json
+// @Param        id path int true "ID"
+// @Success      200 {object} models.Transaction
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /transactions/{id} [get]
 func (h *Handler) GetTransaction(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
@@ -230,6 +275,20 @@ func (h *Handler) GetTransaction(c *gin.Context) {
 }
 
 // PUT /transactions/:id — полная замена полей (occurred_at, если не передан, не меняется).
+//
+// @Summary      Обновить транзакцию
+// @Description  Полная замена полей; если occurred_at не передан — не меняется.
+// @Tags         transactions
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "ID"
+// @Param        input body transactionInput true "Данные транзакции"
+// @Success      200 {object} models.Transaction
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      422 {object} ErrorResponse "Категория не существует"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /transactions/{id} [put]
 func (h *Handler) UpdateTransaction(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
@@ -290,6 +349,16 @@ func (h *Handler) UpdateTransaction(c *gin.Context) {
 }
 
 // DELETE /transactions/:id
+//
+// @Summary      Удалить транзакцию
+// @Tags         transactions
+// @Produce      json
+// @Param        id path int true "ID"
+// @Success      204 "Удалено"
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /transactions/{id} [delete]
 func (h *Handler) DeleteTransaction(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {

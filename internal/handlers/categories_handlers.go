@@ -39,6 +39,11 @@ func (h *Handler) registerCategoryRoutes(rg *gin.RouterGroup) {
 	g.DELETE("/:id", h.DeleteCategory)
 }
 
+// ErrorResponse — тело ошибки (используется в swagger-описании).
+type ErrorResponse struct {
+	Error string `json:"error" example:"invalid id"`
+}
+
 // ---------- общие хелперы (используются всеми handlers) ----------
 
 func respondError(c *gin.Context, status int, msg string) {
@@ -106,6 +111,18 @@ func (in *categoryInput) normalize() (string, string) {
 }
 
 // POST /categories
+//
+// @Summary      Создать категорию
+// @Description  Имя уникально, до 100 символов.
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        input body categoryInput true "Данные категории"
+// @Success      201 {object} models.Category
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      409 {object} ErrorResponse "Конфликт"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /categories [post]
 func (h *Handler) CreateCategory(c *gin.Context) {
 	var in categoryInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -131,6 +148,14 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 }
 
 // GET /categories
+//
+// @Summary      Список категорий
+// @Description  Отсортирован по имени.
+// @Tags         categories
+// @Produce      json
+// @Success      200 {array} models.Category
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /categories [get]
 func (h *Handler) ListCategories(c *gin.Context) {
 	var cats []models.Category
 	if err := h.DB.WithContext(c.Request.Context()).Order("name ASC").Find(&cats).Error; err != nil {
@@ -141,6 +166,16 @@ func (h *Handler) ListCategories(c *gin.Context) {
 }
 
 // GET /categories/:id
+//
+// @Summary      Получить категорию по ID
+// @Tags         categories
+// @Produce      json
+// @Param        id path int true "ID"
+// @Success      200 {object} models.Category
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /categories/{id} [get]
 func (h *Handler) GetCategory(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
@@ -159,6 +194,19 @@ func (h *Handler) GetCategory(c *gin.Context) {
 }
 
 // PUT /categories/:id
+//
+// @Summary      Обновить категорию
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "ID"
+// @Param        input body categoryInput true "Новое имя"
+// @Success      200 {object} models.Category
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      409 {object} ErrorResponse "Конфликт"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /categories/{id} [put]
 func (h *Handler) UpdateCategory(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
@@ -199,6 +247,18 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 
 // DELETE /categories/:id
 // Нельзя удалить категорию, у которой есть транзакции (FK ON DELETE RESTRICT).
+//
+// @Summary      Удалить категорию
+// @Description  Нельзя удалить категорию, у которой есть транзакции.
+// @Tags         categories
+// @Produce      json
+// @Param        id path int true "ID"
+// @Success      204 "Удалено"
+// @Failure      400 {object} ErrorResponse "Неверные данные"
+// @Failure      404 {object} ErrorResponse "Не найдено"
+// @Failure      409 {object} ErrorResponse "Конфликт"
+// @Failure      500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router       /categories/{id} [delete]
 func (h *Handler) DeleteCategory(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
