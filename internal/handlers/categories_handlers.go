@@ -3,14 +3,11 @@ package handle
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"users/internal/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -37,60 +34,6 @@ func (h *Handler) registerCategoryRoutes(rg *gin.RouterGroup) {
 	g.GET("/:id", h.GetCategory)
 	g.PUT("/:id", h.UpdateCategory)
 	g.DELETE("/:id", h.DeleteCategory)
-}
-
-// ErrorResponse — тело ошибки (используется в swagger-описании).
-type ErrorResponse struct {
-	Error string `json:"error" example:"invalid id"`
-}
-
-// ---------- общие хелперы (используются всеми handlers) ----------
-
-func respondError(c *gin.Context, status int, msg string) {
-	c.JSON(status, gin.H{"error": msg})
-}
-
-func respondInternal(c *gin.Context, err error) {
-	// детали ошибки в ответ не отдаём, только в лог gin
-	_ = c.Error(err)
-	respondError(c, http.StatusInternalServerError, "internal server error")
-}
-
-func parseIDParam(c *gin.Context) (uint, bool) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil || id == 0 {
-		respondError(c, http.StatusBadRequest, "invalid id")
-		return 0, false
-	}
-	return uint(id), true
-}
-
-func pgErrCode(err error) string {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code
-	}
-	return ""
-}
-
-func isUniqueViolation(err error) bool {
-	return errors.Is(err, gorm.ErrDuplicatedKey) || pgErrCode(err) == "23505"
-}
-
-func isForeignKeyViolation(err error) bool {
-	return errors.Is(err, gorm.ErrForeignKeyViolated) || pgErrCode(err) == "23503"
-}
-
-// parseTimeParam принимает RFC3339 или YYYY-MM-DD (UTC).
-// dateOnly == true, если передана только дата.
-func parseTimeParam(s string) (t time.Time, dateOnly bool, err error) {
-	if t, err = time.Parse(time.RFC3339, s); err == nil {
-		return t, false, nil
-	}
-	if t, err = time.Parse("2006-01-02", s); err == nil {
-		return t, true, nil
-	}
-	return time.Time{}, false, errors.New("expected RFC3339 or YYYY-MM-DD")
 }
 
 // ---------- categories ----------
@@ -137,12 +80,7 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 
 	cat := models.Category{Name: name}
 	if err := h.DB.WithContext(c.Request.Context()).Create(&cat).Error; err != nil {
-		if isUniqueViolation(err) {
-			respondError(c, http.StatusConflict, "category with this name already exists")
-			return
-		}
-		respondInternal(c, err)
-		return
+		respondError(c, 200, err.Error())
 	}
 	c.JSON(http.StatusCreated, cat)
 }
